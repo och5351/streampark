@@ -1,0 +1,58 @@
+image:
+  repository: apache/streampark
+  tag: "latest" # "v2.1.5"
+  pullPolicy: IfNotPresent
+  pullSecrets: []
+
+service:
+  type: ClusterIP
+  port: 10000
+
+ingress:
+  enabled: false
+  className: ""
+  hostname: streampark.local
+  tls: []
+  annotations: {}
+
+database:
+  dialect: h2   # h2 | mysql | postgresql
+  host: ""      # e.g. mysql.example.com:3306
+  database: streampark
+  username: ""
+  password: ""
+  # MySQL example:
+  # dialect: mysql
+  # host: mysql.example.com:3306
+  # database: streampark
+  # username: root
+  # password: secret
+  #
+  # PostgreSQL example:
+  # dialect: postgresql
+  # host: postgres.example.com:5432
+  # database: streampark
+  # username: postgres
+  # password: secret
+
+kubeconfig:
+  enabled: false
+  secretName: ""
+
+persistence:
+  enabled: false
+  mountPath: ""
+  storageClass: ""
+  accessMode: ReadWriteOnce
+  size: 10Gi
+
+timezone: Asia/Seoul
+
+serviceAccount:
+  create: true
+  name: ""
+
+resources: {}
+nodeSelector: {}
+tolerations: []
+affinity: {}

@@ -1,0 +1,108 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "streampark.fullname" . }}
+  labels:
+    {{- include "streampark.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "streampark.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "streampark.selectorLabels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "streampark.serviceAccountName" . }}
+      {{- with .Values.image.pullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 10000
+              protocol: TCP
+          env:
+            - name: TZ
+              value: {{ .Values.timezone | quote }}
+            - name: DATASOURCE_DIALECT
+              value: {{ include "streampark.dbDialect" . | quote }}
+            {{- if ne .Values.database.dialect "h2" }}
+            - name: DATASOURCE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "streampark.fullname" . }}-db
+                  key: url
+            - name: DATASOURCE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "streampark.fullname" . }}-db
+                  key: username
+            - name: DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "streampark.fullname" . }}-db
+                  key: password
+            {{- end }}
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          {{- with .Values.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- if or .Values.kubeconfig.enabled .Values.persistence.enabled }}
+          volumeMounts:
+            {{- if .Values.kubeconfig.enabled }}
+            - name: kubeconfig
+              mountPath: /root/.kube
+              readOnly: true
+            {{- end }}
+            {{- if .Values.persistence.enabled }}
+            - name: data
+              mountPath: {{ required "persistence.mountPath is required when persistence.enabled is true" .Values.persistence.mountPath }}
+            {{- end }}
+          {{- end }}
+      {{- if or .Values.kubeconfig.enabled .Values.persistence.enabled }}
+      volumes:
+        {{- if .Values.kubeconfig.enabled }}
+        - name: kubeconfig
+          secret:
+            secretName: {{ required "kubeconfig.secretName is required when kubeconfig.enabled is true" .Values.kubeconfig.secretName }}
+        {{- end }}
+        {{- if .Values.persistence.enabled }}
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ include "streampark.fullname" . }}
+        {{- end }}
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

@@ -1,0 +1,29 @@
+1. Get the application URL:
+{{- if .Values.ingress.enabled }}
+  http{{ if .Values.ingress.tls }}s{{ end }}://{{ .Values.ingress.hostname }}
+{{- else if eq .Values.service.type "NodePort" }}
+  export NODE_PORT=$(kubectl get --namespace {{ .Release.Namespace }} -o jsonpath="{.spec.ports[0].nodePort}" services {{ include "streampark.fullname" . }})
+  export NODE_IP=$(kubectl get nodes --namespace {{ .Release.Namespace }} -o jsonpath="{.items[0].status.addresses[0].address}")
+  echo http://$NODE_IP:$NODE_PORT
+{{- else if eq .Values.service.type "LoadBalancer" }}
+  NOTE: It may take a few minutes for the LoadBalancer IP to be available.
+  export SERVICE_IP=$(kubectl get svc --namespace {{ .Release.Namespace }} {{ include "streampark.fullname" . }} --template "{{ "{{ range (index .status.loadBalancer.ingress 0) }}{{ . }}{{ end }}" }}")
+  echo http://$SERVICE_IP:{{ .Values.service.port }}
+{{- else }}
+  kubectl --namespace {{ .Release.Namespace }} port-forward svc/{{ include "streampark.fullname" . }} 10000:10000
+  echo "Visit http://127.0.0.1:10000"
+{{- end }}
+
+2. Default credentials: admin / streampark
+   Change the password immediately after first login.
+{{- if .Values.kubeconfig.enabled }}
+
+3. The kubeconfig Secret "{{ .Values.kubeconfig.secretName }}" must exist before the Pod starts.
+   Create it with:
+     kubectl create secret generic {{ .Values.kubeconfig.secretName }} \
+       --from-file=config=$HOME/.kube/config \
+       --namespace {{ .Release.Namespace }}
+{{- end }}
+
+4. For production use, it is strongly recommended to use an external database
+   (MySQL or PostgreSQL) instead of the default H2.
